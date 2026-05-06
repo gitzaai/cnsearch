@@ -1,0 +1,14 @@
+.tmp/
+dist-package/
+package-build-*/
+package-build-test/
+
+*.zip
+
+js/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.DS_Store
+Thumbs.db

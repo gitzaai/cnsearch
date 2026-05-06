@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.tmp export-ignore
+/dist-package export-ignore
+/package-build-* export-ignore
+/package-build-test export-ignore
+/*.zip export-ignore
+/js/node_modules export-ignore
+/js/npm-debug.log* export-ignore
+/js/yarn-debug.log* export-ignore
+/js/yarn-error.log* export-ignore

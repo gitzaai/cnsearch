@@ -1,0 +1,26 @@
+{
+  "name": "gitzaai/cnsearch",
+  "description": "Flarum 2.0 extension for Meilisearch-powered Chinese discussion search",
+  "type": "flarum-extension",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.0",
+    "flarum/core": "^2.0",
+    "meilisearch/meilisearch-php": "^1.0 || >=2.0.0-beta.1 <3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Gitzaai\\Cnsearch\\": "src/"
+    }
+  },
+  "extra": {
+    "flarum-extension": {
+      "title": "CN Search",
+      "icon": {
+        "name": "fas fa-search",
+        "backgroundColor": "#de6e26",
+        "color": "#fff"
+      }
+    }
+  }
+}
