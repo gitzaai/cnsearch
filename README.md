@@ -18,10 +18,13 @@
 
 ```bash
 composer require gitzaai/cnsearch:^0.1 -W --no-audit
+php flarum assets:publish
 php flarum cache:clear
 ```
 
 如果 Composer 提示审计失败，可临时加上 `--no-audit`。如果你的站点已经锁定 `meilisearch/meilisearch-php` 2.x beta，请保留 `-W` 让 Composer 重新解依赖。
+
+> 注意：Flarum 2.0 beta 8 及以后版本，安装或更新扩展后应执行 `php flarum assets:publish`，以确保前端资产与当前扩展代码同步。
 
 ## 配置
 
