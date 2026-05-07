@@ -52,6 +52,14 @@ ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 php flarum cnsearch:reindex
 ```
 
+> 如果输入 php flarum cnsearch:reindex
+>
+>  提示  There are no commands defined in the "cnsearch" namespace.
+>
+> 请进入网站后台管理面板启用 **CN Search** 插件，再执行此命令。
+
+
+
 查看状态：
 
 ```bash

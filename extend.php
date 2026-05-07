@@ -40,8 +40,9 @@ return [
     (new Extend\SearchDriver(DatabaseSearchDriver::class))
         ->setFulltext(DiscussionSearcher::class, MeilisearchDiscussionFulltextFilter::class),
     (new Extend\Settings)
-        ->default('cnsearch.meili.host', 'http://127.0.0.1:7700')
-        ->default('cnsearch.meili.index', 'flarum_discussions'),
+        ->default('cnsearch.meili.host', '')
+        ->default('cnsearch.meili.index', '')
+        ->default('cnsearch.meili.key', ''),
     (new Extend\Routes('api'))
         ->get('/cnsearch/search', 'cnsearch.search', function (DiscussionIndexer $indexer) {
             return new class ($indexer) implements RequestHandlerInterface {

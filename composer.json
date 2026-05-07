@@ -3,6 +3,15 @@
   "description": "Flarum 2.0 extension for Meilisearch-powered Chinese discussion search",
   "type": "flarum-extension",
   "license": "MIT",
+  "authors": [
+    {
+      "name": "jack"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/gitzaai/cnsearch/issues",
+    "source": "https://github.com/gitzaai/cnsearch"
+  },
   "require": {
     "php": ">=8.0",
     "flarum/core": "^2.0",
