@@ -1,5 +1,7 @@
 # CN Search for Flarum 2.0
 
+> Local development/testing: use the Composer `path` repository workflow in [LOCAL_TESTING.md](LOCAL_TESTING.md). This lets a local Flarum app load this checkout directly from `E:/github/cnsearch` without waiting for GitHub tags or releases.
+
 `gitzaai/cnsearch` 是一个面向 Flarum 2 的 Meilisearch 搜索扩展，用于把讨论标题和帖子内容同步到 Meilisearch，并接管 Flarum 默认讨论搜索的全文检索部分。
 
 ## 功能
