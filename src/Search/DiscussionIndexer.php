@@ -27,17 +27,23 @@ class DiscussionIndexer
 
     protected function getHost(): string
     {
-        return $this->settings->get('cnsearch.meili.host', 'http://127.0.0.1:7700');
+        $host = trim((string) $this->settings->get('cnsearch.meili.host', 'http://127.0.0.1:7700'));
+
+        return $host !== '' ? $host : 'http://127.0.0.1:7700';
     }
 
     protected function getApiKey(): ?string
     {
-        return $this->settings->get('cnsearch.meili.key');
+        $key = (string) $this->settings->get('cnsearch.meili.key');
+
+        return $key !== '' ? $key : null;
     }
 
     protected function getIndexName(): string
     {
-        return $this->settings->get('cnsearch.meili.index', 'flarum_discussions');
+        $indexName = trim((string) $this->settings->get('cnsearch.meili.index', 'flarum_discussions'));
+
+        return $indexName !== '' ? $indexName : 'flarum_discussions';
     }
 
     protected function index(): Indexes
@@ -146,23 +152,29 @@ class DiscussionIndexer
 
     public function reindexAll(int $batchSize = 100): int
     {
-        $total = $this->getSourceDiscussionCount();
         $processed = 0;
+        $lastId = 0;
 
         $this->ensureIndexExists();
         $this->updateIndexSettings();
         $this->waitForTask($this->index()->deleteAllDocuments());
 
-        for ($offset = 0; $offset < $total; $offset += $batchSize) {
+        while (true) {
             $ids = Capsule::table('discussions')
                 ->whereNull('hidden_at')
+                ->where('id', '>', $lastId)
                 ->orderBy('id')
-                ->offset($offset)
                 ->limit($batchSize)
                 ->pluck('id');
+
+            if ($ids->isEmpty()) {
+                break;
+            }
+
             $documents = [];
 
             foreach ($ids as $id) {
+                $lastId = max($lastId, (int) $id);
                 $discussion = Discussion::query()->where('id', $id)->first();
 
                 if (! $discussion) {
@@ -285,7 +297,6 @@ class DiscussionIndexer
         }
 
         $this->ensureIndexExists();
-        $this->updateIndexSettings();
         $this->waitForTask($this->index()->addDocuments([$this->buildDocument($discussion)]));
 
         return 1;
@@ -318,13 +329,12 @@ class DiscussionIndexer
     public function search(string $query, User $actor, int $page = 1, int $perPage = 20): array
     {
         $offset = ($page - 1) * $perPage;
-        $ids = $this->searchDiscussionIds($query, $perPage, $offset);
-        $visibleIds = $this->filterVisibleDiscussionIds($ids, $actor);
+        $ids = $this->searchVisibleDiscussionIds($query, $actor, $perPage, $offset);
 
         return [
-            'data' => $visibleIds,
+            'data' => $ids,
             'meta' => [
-                'total' => count($visibleIds),
+                'total' => $this->countVisibleDiscussionIds($query, $actor),
                 'page' => $page,
                 'perPage' => $perPage,
             ],
@@ -361,6 +371,60 @@ class DiscussionIndexer
         }
 
         return array_slice($ids, $offset, $limit);
+    }
+
+    protected function searchVisibleDiscussionIds(string $query, User $actor, int $limit, int $offset = 0): array
+    {
+        $visibleIds = [];
+        $searchOffset = 0;
+        $searchLimit = max($limit + $offset, $limit, 20);
+
+        while (count($visibleIds) < $offset + $limit) {
+            $ids = $this->searchDiscussionIds($query, $searchLimit, $searchOffset);
+
+            if ($ids === []) {
+                break;
+            }
+
+            foreach ($this->filterVisibleDiscussionIds($ids, $actor) as $id) {
+                if (! in_array($id, $visibleIds, true)) {
+                    $visibleIds[] = $id;
+                }
+            }
+
+            if (count($ids) < $searchLimit) {
+                break;
+            }
+
+            $searchOffset += $searchLimit;
+        }
+
+        return array_slice($visibleIds, $offset, $limit);
+    }
+
+    protected function countVisibleDiscussionIds(string $query, User $actor): int
+    {
+        $count = 0;
+        $searchOffset = 0;
+        $searchLimit = 1000;
+
+        while (true) {
+            $ids = $this->searchDiscussionIds($query, $searchLimit, $searchOffset);
+
+            if ($ids === []) {
+                break;
+            }
+
+            $count += count($this->filterVisibleDiscussionIds($ids, $actor));
+
+            if (count($ids) < $searchLimit) {
+                break;
+            }
+
+            $searchOffset += $searchLimit;
+        }
+
+        return $count;
     }
 
     protected function searchHits(string $query, int $limit, int $offset = 0): array
