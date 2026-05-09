@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.18 - 2026-05-09
+
+- Fix the Flarum 2 admin settings page registration so the extension settings are visible in the backend.
+- Remove the invalid admin `generalItems` registration and keep the dedicated extension settings page.
+- Improve Meilisearch default handling and visible-result pagination/counting during search.
+
 ## v0.1.17 - 2026-05-09
 
 - Add a dedicated admin settings page for Meilisearch host, API key, and index management.
