@@ -27,3 +27,7 @@ gitzaai-cnsearch.admin.buttons.reindex_success: "重建索引请求已提交。"
 gitzaai-cnsearch.admin.buttons.reindex_failed: "重建索引失败，请检查日志。"
 gitzaai-cnsearch.admin.buttons.test_connection_success: "Meilisearch 连接成功。"
 gitzaai-cnsearch.admin.buttons.test_connection_failed: "Meilisearch 连接失败。"
+
+gitzaai-cnsearch.admin.page.title: "CN Search 配置"
+gitzaai-cnsearch.admin.page.description: "配置和管理您的 Meilisearch 搜索服务。"
+gitzaai-cnsearch.admin.page.meilisearch_key_placeholder: "输入您的 API 密钥"

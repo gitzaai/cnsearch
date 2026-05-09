@@ -27,3 +27,7 @@ gitzaai-cnsearch.admin.buttons.reindex_success: "Reindex request submitted succe
 gitzaai-cnsearch.admin.buttons.reindex_failed: "Reindex failed. Please check the logs."
 gitzaai-cnsearch.admin.buttons.test_connection_success: "Meilisearch connection successful."
 gitzaai-cnsearch.admin.buttons.test_connection_failed: "Meilisearch connection failed."
+
+gitzaai-cnsearch.admin.page.title: "CN Search Configuration"
+gitzaai-cnsearch.admin.page.description: "Configure and manage your Meilisearch-powered discussion search."
+gitzaai-cnsearch.admin.page.meilisearch_key_placeholder: "Enter your API key"
