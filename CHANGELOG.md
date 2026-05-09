@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.19 - 2026-05-09
+
+- Register admin options with Flarum 2 `Extend.Admin().setting()` so the extension card shows the settings action.
+- Keep Meilisearch connection controls on the generated extension settings page.
+
 ## v0.1.18 - 2026-05-09
 
 - Fix the Flarum 2 admin settings page registration so the extension settings are visible in the backend.
