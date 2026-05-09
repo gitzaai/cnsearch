@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.17 - 2026-05-09
+
+- Add a dedicated admin settings page for Meilisearch host, API key, and index management.
+- Add admin-side connection test and reindex controls for quicker setup verification.
+- Update the installation guide to document installing the `dev-main` branch from the repository.
+
 ## v0.1.16 - 2026-05-06
 
 - Add Flarum 2 native discussion full-text search integration backed by Meilisearch.
