@@ -17,7 +17,8 @@
 ## 安装
 
 ```bash
-composer require gitzaai/cnsearch:^0.1 -W --no-audit
+composer config repositories.cnsearch vcs https://github.com/gitzaai/cnsearch
+composer require gitzaai/cnsearch:dev-main@dev -W --no-audit
 php flarum assets:publish
 php flarum cache:clear
 ```
