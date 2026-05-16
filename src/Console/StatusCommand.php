@@ -25,8 +25,11 @@ class StatusCommand extends AbstractCommand
 
     protected function fire(): int
     {
-        $this->info('Host: ' . $this->settings->get('cnsearch.meili.host', 'http://127.0.0.1:7700'));
-        $this->info('Index: ' . $this->settings->get('cnsearch.meili.index', 'flarum_discussions'));
+        $host = trim((string) $this->settings->get('cnsearch.meili.host', ''));
+        $index = trim((string) $this->settings->get('cnsearch.meili.index', ''));
+
+        $this->info('Host: ' . ($host === '' ? 'not configured' : rtrim($host, '/')));
+        $this->info('Index: ' . ($index === '' ? 'flarum_discussions' : $index));
 
         try {
             $this->indexer->testConnection();

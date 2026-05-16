@@ -1,88 +1,91 @@
 # CN Search for Flarum 2.0
 
-> Local development/testing: use the Composer `path` repository workflow in [LOCAL_TESTING.md](LOCAL_TESTING.md). This lets a local Flarum app load this checkout directly from `E:/github/cnsearch` without waiting for GitHub tags or releases.
+`gitzaai/cnsearch` is a Flarum 2 extension that uses Meilisearch as the discussion search backend. It indexes discussion titles and visible comment content, then plugs into Flarum's built-in discussion search flow.
 
-`gitzaai/cnsearch` 是一个面向 Flarum 2 的 Meilisearch 搜索扩展，用于把讨论标题和帖子内容同步到 Meilisearch，并接管 Flarum 默认讨论搜索的全文检索部分。
+## Screenshots
 
-## 功能
+### Admin Settings
 
-- 使用 Meilisearch 作为讨论搜索后端
-- 每条讨论对应一个 Meilisearch 文档
-- 将讨论下所有未隐藏的普通回复聚合到同一个索引文档
-- 为中文内容额外生成 CJK n-gram 检索字段，提高中文短词命中率
-- 接入 Flarum 顶部默认搜索框
-- 将顶部搜索弹窗预览的最小触发长度从 3 降到 1，避免 1-2 个中文字符不触发即时搜索
-- 提供搜索、状态检查、连接测试和重建索引 API
-- 提供命令行配置、状态检查、搜索测试和重建索引命令
-- 在发帖、编辑、隐藏、恢复、删除帖子，以及讨论创建、改名、隐藏、恢复、删除后自动同步索引
+![CN Search admin settings](screenshots/admin-settings.png)
 
-## 安装
+### Search Results
+
+![CN Search search results](screenshots/search-results.png)
+
+
+
+## Features
+
+- Uses Meilisearch for discussion full-text search.
+- Stores one Meilisearch document per discussion.
+- Merges visible comment posts into each discussion document.
+- Adds CJK n-gram fields for Chinese, Japanese, Korean, and other CJK search terms.
+- Lowers the forum search trigger length so 1-2 character Chinese queries can run.
+- Provides admin APIs and console commands for status checks, connection tests, search tests, and reindexing.
+- Syncs the index when posts or discussions are created, edited, hidden, restored, or deleted.
+
+## Installation
 
 ```bash
-composer config repositories.cnsearch vcs https://github.com/gitzaai/cnsearch
-composer require gitzaai/cnsearch:dev-main@dev -W --no-audit
+composer require gitzaai/cnsearch
 php flarum assets:publish
 php flarum cache:clear
 ```
 
-如果 Composer 提示审计失败，可临时加上 `--no-audit`。如果你的站点已经锁定 `meilisearch/meilisearch-php` 2.x beta，请保留 `-W` 让 Composer 重新解依赖。
+For Flarum 2.0 beta 8 and newer, run `php flarum assets:publish` after installing or updating the extension to make sure frontend assets match the current extension code.
 
-> 注意：Flarum 2.0 beta 8 及以后版本，安装或更新扩展后应执行 `php flarum assets:publish`，以确保前端资产与当前扩展代码同步。
+## Configuration
 
-## 配置
-
-推荐使用扩展自带命令写入 Flarum `settings` 表：
+The extension does not ship with a preset Meilisearch host or API key. Configure them in the admin panel, or use the bundled command:
 
 ```bash
-php flarum cnsearch:configure http://YOUR_MEILISEARCH_HOST:7700 --key=YOUR_MEILISEARCH_API_KEY --index=flarum_discussions
+php flarum cnsearch:configure https://your-meilisearch.example --index=flarum_discussions
 php flarum cache:clear
 ```
 
-也可以手动写入数据库：
+If your Meilisearch instance requires authentication, provide your own key:
+
+```bash
+php flarum cnsearch:configure https://your-meilisearch.example --key=replace_with_your_key --index=flarum_discussions
+php flarum cache:clear
+```
+
+You can also write the settings directly:
 
 ```sql
 INSERT INTO settings (`key`, `value`) VALUES
-  ('cnsearch.meili.host', 'http://YOUR_MEILISEARCH_HOST:7700'),
-  ('cnsearch.meili.key', 'YOUR_MEILISEARCH_API_KEY'),
+  ('cnsearch.meili.host', 'https://your-meilisearch.example'),
   ('cnsearch.meili.index', 'flarum_discussions')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 ```
 
-如果你的 Flarum 数据表有前缀，请把 `settings` 改成对应的 `前缀_settings`。
+If your Flarum database tables use a prefix, replace `settings` with the prefixed table name.
 
-## 验证
+## Verification
 
-重建索引：
+Rebuild the index:
 
 ```bash
 php flarum cnsearch:reindex
 ```
 
-> 如果输入 php flarum cnsearch:reindex
->
->  提示  There are no commands defined in the "cnsearch" namespace.
->
-> 请进入网站后台管理面板启用 **CN Search** 插件，再执行此命令。
+If Flarum reports `There are no commands defined in the "cnsearch" namespace.`, enable **CN Search** in the admin panel first, then run the command again.
 
-
-
-查看状态：
+Check status:
 
 ```bash
 php flarum cnsearch:status
 ```
 
-状态里的 `Documents` 是 Meilisearch 文档数，也就是已索引的讨论数。由于扩展是一条讨论一个文档，所以如果论坛有 8 个未隐藏讨论，`Documents: 8` 是正常的。
+`Documents` is the number of indexed Meilisearch documents, which normally matches the number of visible discussions. `Source posts` is the number of visible comment posts included in the index, and can be larger than `Documents`.
 
-`Source posts` 是参与索引的未隐藏普通回复数。如果有很多回复，这个数应该大于 `Documents`。
-
-直接测试 Meilisearch 是否能搜到某个中文词：
+Test a search term directly:
 
 ```bash
 php flarum cnsearch:search 中文关键词
 ```
 
-如果这个命令能返回讨论 ID，Flarum 顶部搜索框也应该能搜到对应讨论。更新扩展后请务必执行：
+After updating the extension, these commands are useful:
 
 ```bash
 composer dump-autoload -o
@@ -92,13 +95,13 @@ php flarum cnsearch:reindex
 
 ## API
 
-搜索：
+Search:
 
 ```bash
-curl "https://your-flarum-site.example/api/cnsearch/search?q=关键词&page=1&perPage=20"
+curl "https://your-flarum-site.example/api/cnsearch/search?q=keyword&page=1&perPage=20"
 ```
 
-状态检查和重建索引需要管理员权限：
+Status checks and reindexing require an admin session:
 
 ```bash
 curl "https://your-flarum-site.example/api/cnsearch/status"
@@ -106,11 +109,8 @@ curl -X POST "https://your-flarum-site.example/api/cnsearch/reindex"
 curl "https://your-flarum-site.example/api/cnsearch/test-connection"
 ```
 
-## 中文搜索说明
+## Links
 
-扩展会把原始标题、原始内容以及中文 n-gram 字段一起写入 Meilisearch。这样即使 Meilisearch 当前实例没有理想的中文分词配置，常见中文短词也可以命中。
-
-## 注意
-
-- Meilisearch API Key 属于敏感信息，不要放到公开仓库、前端代码或截图中。
-- 如果更新后 Flarum 顶部搜索仍没有走新索引，请先确认 `php flarum cache:clear` 已执行，并在浏览器中强制刷新前台页面。
+- [Packagist](https://packagist.org/packages/gitzaai/cnsearch)
+- [Discuss](https://discuss.flarum.org/)
+- [Report Issues](https://github.com/gitzaai/cnsearch/issues)

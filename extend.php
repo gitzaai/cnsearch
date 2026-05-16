@@ -7,7 +7,6 @@ use Flarum\Discussion\Event\Restored as DiscussionRestored;
 use Flarum\Discussion\Event\Started as DiscussionStarted;
 use Flarum\Discussion\Search\DiscussionSearcher;
 use Flarum\Extend;
-use Flarum\Http\RequestUtil;
 use Flarum\Post\Event\Deleted as PostDeleted;
 use Flarum\Post\Event\Hidden as PostHidden;
 use Flarum\Post\Event\Posted as PostPosted;
@@ -18,13 +17,13 @@ use Gitzaai\Cnsearch\Console\ConfigureCommand;
 use Gitzaai\Cnsearch\Console\ReindexCommand;
 use Gitzaai\Cnsearch\Console\SearchCommand;
 use Gitzaai\Cnsearch\Console\StatusCommand;
+use Gitzaai\Cnsearch\Api\Controller\ReindexController;
+use Gitzaai\Cnsearch\Api\Controller\SearchController;
+use Gitzaai\Cnsearch\Api\Controller\StatusController;
+use Gitzaai\Cnsearch\Api\Controller\TestConnectionController;
 use Gitzaai\Cnsearch\Listener\DiscussionIndexSync;
 use Gitzaai\Cnsearch\Search\DiscussionIndexer;
 use Gitzaai\Cnsearch\Search\MeilisearchDiscussionFulltextFilter;
-use Laminas\Diactoros\Response\JsonResponse;
-use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Server\RequestHandlerInterface;
 
 return [
     new Extend\Locales(__DIR__ . '/locale'),
@@ -38,112 +37,16 @@ return [
         ->command(SearchCommand::class)
         ->command(StatusCommand::class),
     (new Extend\SearchDriver(DatabaseSearchDriver::class))
-        ->setFulltext(DiscussionSearcher::class, MeilisearchDiscussionFulltextFilter::class),
+        ->setFullText(DiscussionSearcher::class, MeilisearchDiscussionFulltextFilter::class),
     (new Extend\Settings)
-        ->default('cnsearch.meili.host', 'http://127.0.0.1:7700')
-        ->default('cnsearch.meili.index', 'flarum_discussions')
+        ->default('cnsearch.meili.host', '')
+        ->default('cnsearch.meili.index', '')
         ->default('cnsearch.meili.key', ''),
     (new Extend\Routes('api'))
-        ->get('/cnsearch/search', 'cnsearch.search', function (DiscussionIndexer $indexer) {
-            return new class ($indexer) implements RequestHandlerInterface {
-                public function __construct(
-                    protected DiscussionIndexer $indexer
-                ) {
-                }
-
-                public function handle(ServerRequestInterface $request): ResponseInterface
-                {
-                    $actor = RequestUtil::getActor($request);
-                    $queryParams = $request->getQueryParams();
-                    $query = trim((string) ($queryParams['q'] ?? ''));
-                    $page = isset($queryParams['page']) ? max(1, (int) $queryParams['page']) : 1;
-                    $perPage = isset($queryParams['perPage']) ? max(1, min(100, (int) $queryParams['perPage'])) : 20;
-
-                    if ($query === '') {
-                        return new JsonResponse(['data' => [], 'meta' => ['total' => 0]]);
-                    }
-
-                    return new JsonResponse($this->indexer->search($query, $actor, $page, $perPage));
-                }
-            };
-        })
-        ->post('/cnsearch/reindex', 'cnsearch.reindex', function (DiscussionIndexer $indexer) {
-            return new class ($indexer) implements RequestHandlerInterface {
-                public function __construct(
-                    protected DiscussionIndexer $indexer
-                ) {
-                }
-
-                public function handle(ServerRequestInterface $request): ResponseInterface
-                {
-                    RequestUtil::getActor($request)->assertAdmin();
-
-                    $payload = $request->getParsedBody();
-                    $payload = is_array($payload) ? $payload : [];
-                    $batchSize = isset($payload['batchSize']) ? max(10, min(500, (int) $payload['batchSize'])) : 100;
-                    $count = $this->indexer->reindexAll($batchSize);
-
-                    return new JsonResponse(['data' => ['reindexed' => $count]]);
-                }
-            };
-        })
-        ->get('/cnsearch/test-connection', 'cnsearch.test-connection', function (DiscussionIndexer $indexer) {
-            return new class ($indexer) implements RequestHandlerInterface {
-                public function __construct(
-                    protected DiscussionIndexer $indexer
-                ) {
-                }
-
-                public function handle(ServerRequestInterface $request): ResponseInterface
-                {
-                    RequestUtil::getActor($request)->assertAdmin();
-
-                    try {
-                        $this->indexer->testConnection();
-
-                        return new JsonResponse(['data' => ['ok' => true]]);
-                    } catch (\Throwable $e) {
-                        return new JsonResponse([
-                            'errors' => [[
-                                'status' => '500',
-                                'title' => 'Meilisearch connection failed',
-                                'detail' => $e->getMessage(),
-                            ]],
-                        ], 500);
-                    }
-                }
-            };
-        })
-        ->get('/cnsearch/status', 'cnsearch.status', function (DiscussionIndexer $indexer) {
-            return new class ($indexer) implements RequestHandlerInterface {
-                public function __construct(
-                    protected DiscussionIndexer $indexer
-                ) {
-                }
-
-                public function handle(ServerRequestInterface $request): ResponseInterface
-                {
-                    RequestUtil::getActor($request)->assertAdmin();
-
-                    try {
-                        return new JsonResponse(['data' => [
-                            'count' => $this->indexer->getDocumentCount(),
-                            'sourceDiscussions' => $this->indexer->getSourceDiscussionCount(),
-                            'sourcePosts' => $this->indexer->getSourcePostCount(),
-                            'lastReindexAt' => $this->indexer->getLastReindexTime(),
-                        ]]);
-                    } catch (\Throwable $e) {
-                        return new JsonResponse([
-                            'errors' => [[
-                                'status' => '500',
-                                'title' => 'Failed to retrieve index status',
-                                'detail' => $e->getMessage(),
-                            ]],
-                        ], 500);
-                    }
-                }
-            };
-        }),
+        ->get('/cnsearch/search', 'gitzaai.cnsearch.search', SearchController::class)
+        ->post('/cnsearch/reindex', 'gitzaai.cnsearch.reindex', ReindexController::class)
+        ->get('/cnsearch/test-connection', 'gitzaai.cnsearch.test-connection', TestConnectionController::class)
+        ->get('/cnsearch/status', 'gitzaai.cnsearch.status', StatusController::class),
     (new \Flarum\Extend\Event())
         ->listen(PostPosted::class, DiscussionIndexSync::class)
         ->listen(PostRevised::class, DiscussionIndexSync::class)

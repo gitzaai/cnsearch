@@ -1,6 +1,6 @@
 import Extend from 'flarum/common/extenders';
 import app from 'flarum/admin/app';
-import CnsearchAdminButtons from './CnsearchAdminButtons';
+import CnsearchAdminButtons from './components/CnsearchAdminButtons';
 
 export default [
   new Extend.Admin()
@@ -8,9 +8,10 @@ export default [
       () => ({
         setting: 'cnsearch.meili.host',
         label: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_host_label', {}, true),
-        help: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_host_help', {}, true),
         type: 'text',
-        placeholder: 'http://127.0.0.1:7700',
+        autocomplete: 'off',
+        placeholder: '',
+        help: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_host_help', {}, true),
       }),
       30
     )
@@ -18,9 +19,10 @@ export default [
       () => ({
         setting: 'cnsearch.meili.key',
         label: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_key_label', {}, true),
-        help: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_key_help', {}, true),
         type: 'password',
-        placeholder: app.translator.trans('gitzaai-cnsearch.admin.page.meilisearch_key_placeholder', {}, true),
+        autocomplete: 'new-password',
+        placeholder: '',
+        help: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_key_help', {}, true),
       }),
       20
     )
@@ -28,20 +30,18 @@ export default [
       () => ({
         setting: 'cnsearch.meili.index',
         label: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_index_label', {}, true),
-        help: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_index_help', {}, true),
         type: 'text',
-        placeholder: 'flarum_discussions',
+        help: app.translator.trans('gitzaai-cnsearch.admin.settings.meili_index_help', {}, true),
       }),
       10
     )
     .setting(
-      () => function () {
-        return m('div.Form-group', [
+      () => () =>
+        m('div.Form-group', [
           m('label', app.translator.trans('gitzaai-cnsearch.admin.buttons.title')),
           m('div.helpText', app.translator.trans('gitzaai-cnsearch.admin.buttons.help')),
           m(CnsearchAdminButtons),
-        ]);
-      },
-      0
+        ]),
+      -10
     ),
 ];

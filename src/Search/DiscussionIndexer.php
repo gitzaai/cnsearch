@@ -14,42 +14,54 @@ use Meilisearch\Exceptions\ApiException;
 class DiscussionIndexer
 {
     protected SettingsRepositoryInterface $settings;
-    protected MeilisearchClient $client;
+    protected ?MeilisearchClient $client = null;
     protected string $indexName;
     protected ?Indexes $index = null;
 
     public function __construct(SettingsRepositoryInterface $settings)
     {
         $this->settings = $settings;
-        $this->client = new MeilisearchClient($this->getHost(), $this->getApiKey());
         $this->indexName = $this->getIndexName();
     }
 
     protected function getHost(): string
     {
-        $host = trim((string) $this->settings->get('cnsearch.meili.host', 'http://127.0.0.1:7700'));
-
-        return $host !== '' ? $host : 'http://127.0.0.1:7700';
+        return rtrim(trim((string) $this->settings->get('cnsearch.meili.host', '')), '/');
     }
 
     protected function getApiKey(): ?string
     {
-        $key = (string) $this->settings->get('cnsearch.meili.key');
+        $key = trim((string) $this->settings->get('cnsearch.meili.key', ''));
 
-        return $key !== '' ? $key : null;
+        return $key === '' ? null : $key;
     }
 
     protected function getIndexName(): string
     {
-        $indexName = trim((string) $this->settings->get('cnsearch.meili.index', 'flarum_discussions'));
+        $indexName = trim((string) $this->settings->get('cnsearch.meili.index', ''));
 
-        return $indexName !== '' ? $indexName : 'flarum_discussions';
+        return $indexName === '' ? 'flarum_discussions' : $indexName;
+    }
+
+    protected function client(): MeilisearchClient
+    {
+        if ($this->client !== null) {
+            return $this->client;
+        }
+
+        $host = $this->getHost();
+
+        if ($host === '') {
+            throw new \RuntimeException('Meilisearch host is not configured yet.');
+        }
+
+        return $this->client = new MeilisearchClient($host, $this->getApiKey());
     }
 
     protected function index(): Indexes
     {
         if ($this->index === null) {
-            $this->index = $this->client->index($this->indexName);
+            $this->index = $this->client()->index($this->indexName);
         }
 
         return $this->index;
@@ -67,9 +79,9 @@ class DiscussionIndexer
             }
         }
 
-        $task = $this->client->createIndex($this->indexName, ['primaryKey' => 'id']);
+        $task = $this->client()->createIndex($this->indexName, ['primaryKey' => 'id']);
         $this->waitForTask($task);
-        $this->index = $this->client->index($this->indexName);
+        $this->index = $this->client()->index($this->indexName);
     }
 
     protected function fetchIndexInfo(): void
@@ -86,7 +98,7 @@ class DiscussionIndexer
             return;
         }
 
-        $this->client->getIndex($this->indexName);
+        $this->client()->getIndex($this->indexName);
     }
 
     protected function isIndexNotFoundException(\Throwable $e): bool
@@ -122,14 +134,14 @@ class DiscussionIndexer
             return;
         }
 
-        if (method_exists($this->client, 'waitForTask')) {
-            $this->client->waitForTask((int) $taskUid);
+        if (method_exists($this->client(), 'waitForTask')) {
+            $this->client()->waitForTask((int) $taskUid);
 
             return;
         }
 
-        if (method_exists($this->client, 'getTask')) {
-            $this->waitForTask($this->client->getTask((int) $taskUid));
+        if (method_exists($this->client(), 'getTask')) {
+            $this->waitForTask($this->client()->getTask((int) $taskUid));
         }
     }
 
@@ -143,6 +155,7 @@ class DiscussionIndexer
                 'words',
                 'proximity',
                 'attribute',
+                'sort',
                 'exactness',
             ],
         ]);
@@ -152,29 +165,23 @@ class DiscussionIndexer
 
     public function reindexAll(int $batchSize = 100): int
     {
+        $total = $this->getSourceDiscussionCount();
         $processed = 0;
-        $lastId = 0;
 
         $this->ensureIndexExists();
         $this->updateIndexSettings();
         $this->waitForTask($this->index()->deleteAllDocuments());
 
-        while (true) {
+        for ($offset = 0; $offset < $total; $offset += $batchSize) {
             $ids = Capsule::table('discussions')
                 ->whereNull('hidden_at')
-                ->where('id', '>', $lastId)
                 ->orderBy('id')
+                ->offset($offset)
                 ->limit($batchSize)
                 ->pluck('id');
-
-            if ($ids->isEmpty()) {
-                break;
-            }
-
             $documents = [];
 
             foreach ($ids as $id) {
-                $lastId = max($lastId, (int) $id);
                 $discussion = Discussion::query()->where('id', $id)->first();
 
                 if (! $discussion) {
@@ -297,6 +304,7 @@ class DiscussionIndexer
         }
 
         $this->ensureIndexExists();
+        $this->updateIndexSettings();
         $this->waitForTask($this->index()->addDocuments([$this->buildDocument($discussion)]));
 
         return 1;
@@ -315,8 +323,8 @@ class DiscussionIndexer
 
     public function testConnection(): bool
     {
-        if (method_exists($this->client, 'health')) {
-            $this->client->health();
+        if (method_exists($this->client(), 'health')) {
+            $this->client()->health();
 
             return true;
         }
@@ -329,12 +337,13 @@ class DiscussionIndexer
     public function search(string $query, User $actor, int $page = 1, int $perPage = 20): array
     {
         $offset = ($page - 1) * $perPage;
-        $ids = $this->searchVisibleDiscussionIds($query, $actor, $perPage, $offset);
+        $ids = $this->searchDiscussionIds($query, $perPage, $offset);
+        $visibleIds = $this->filterVisibleDiscussionIds($ids, $actor);
 
         return [
-            'data' => $ids,
+            'data' => $visibleIds,
             'meta' => [
-                'total' => $this->countVisibleDiscussionIds($query, $actor),
+                'total' => count($visibleIds),
                 'page' => $page,
                 'perPage' => $perPage,
             ],
@@ -371,60 +380,6 @@ class DiscussionIndexer
         }
 
         return array_slice($ids, $offset, $limit);
-    }
-
-    protected function searchVisibleDiscussionIds(string $query, User $actor, int $limit, int $offset = 0): array
-    {
-        $visibleIds = [];
-        $searchOffset = 0;
-        $searchLimit = max($limit + $offset, $limit, 20);
-
-        while (count($visibleIds) < $offset + $limit) {
-            $ids = $this->searchDiscussionIds($query, $searchLimit, $searchOffset);
-
-            if ($ids === []) {
-                break;
-            }
-
-            foreach ($this->filterVisibleDiscussionIds($ids, $actor) as $id) {
-                if (! in_array($id, $visibleIds, true)) {
-                    $visibleIds[] = $id;
-                }
-            }
-
-            if (count($ids) < $searchLimit) {
-                break;
-            }
-
-            $searchOffset += $searchLimit;
-        }
-
-        return array_slice($visibleIds, $offset, $limit);
-    }
-
-    protected function countVisibleDiscussionIds(string $query, User $actor): int
-    {
-        $count = 0;
-        $searchOffset = 0;
-        $searchLimit = 1000;
-
-        while (true) {
-            $ids = $this->searchDiscussionIds($query, $searchLimit, $searchOffset);
-
-            if ($ids === []) {
-                break;
-            }
-
-            $count += count($this->filterVisibleDiscussionIds($ids, $actor));
-
-            if (count($ids) < $searchLimit) {
-                break;
-            }
-
-            $searchOffset += $searchLimit;
-        }
-
-        return $count;
     }
 
     protected function searchHits(string $query, int $limit, int $offset = 0): array

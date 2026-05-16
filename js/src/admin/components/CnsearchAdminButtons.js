@@ -18,38 +18,18 @@ export default class CnsearchAdminButtons extends Component {
     this.refreshStatus();
   }
 
-  errorMessage(error, fallback) {
-    return (
-      error.response?.body?.errors?.[0]?.detail ||
-      error.response?.errors?.[0]?.detail ||
-      error.body?.errors?.[0]?.detail ||
-      error.message ||
-      fallback
-    );
-  }
-
   view() {
     const reindexLabel = app.translator.trans('gitzaai-cnsearch.admin.buttons.reindex');
     const testConnectionLabel = app.translator.trans('gitzaai-cnsearch.admin.buttons.test_connection');
 
     return m('div.CnsearchAdminButtons', [
       m('div.CnsearchAdminButtons-status', [
-        m('strong', app.translator.trans('gitzaai-cnsearch.admin.buttons.status_label') + ':'),
+        m('strong', `${app.translator.trans('gitzaai-cnsearch.admin.buttons.status_label')}:`),
         ' ',
         m('span', this.statusText),
         m('div', app.translator.trans('gitzaai-cnsearch.admin.buttons.indexed_count', { count: this.documentCount ?? '-' })),
-        m(
-          'div',
-          app.translator.trans('gitzaai-cnsearch.admin.buttons.source_discussions', {
-            count: this.sourceDiscussions ?? '-',
-          })
-        ),
-        m(
-          'div',
-          app.translator.trans('gitzaai-cnsearch.admin.buttons.source_posts', {
-            count: this.sourcePosts ?? '-',
-          })
-        ),
+        m('div', app.translator.trans('gitzaai-cnsearch.admin.buttons.source_discussions', { count: this.sourceDiscussions ?? '-' })),
+        m('div', app.translator.trans('gitzaai-cnsearch.admin.buttons.source_posts', { count: this.sourcePosts ?? '-' })),
         m(
           'div',
           app.translator.trans('gitzaai-cnsearch.admin.buttons.last_sync', {
@@ -59,19 +39,25 @@ export default class CnsearchAdminButtons extends Component {
         this.lastChecked ? m('div', app.translator.trans('gitzaai-cnsearch.admin.buttons.status_last_checked', { time: this.lastChecked })) : null,
       ]),
       m('div.CnsearchAdminButtons-actions', [
-        Button.component({
-          className: 'Button Button--primary',
-          loading: this.loadingReindex,
-          onclick: this.reindex.bind(this),
-          'aria-label': reindexLabel,
-        }, reindexLabel),
-        Button.component({
-          className: 'Button',
-          loading: this.loadingTest,
-          onclick: this.testConnection.bind(this),
-          style: 'margin-left: 0.5em;',
-          'aria-label': testConnectionLabel,
-        }, testConnectionLabel),
+        Button.component(
+          {
+            className: 'Button Button--primary',
+            loading: this.loadingReindex,
+            onclick: this.reindex.bind(this),
+            'aria-label': reindexLabel,
+          },
+          reindexLabel
+        ),
+        Button.component(
+          {
+            className: 'Button',
+            loading: this.loadingTest,
+            onclick: this.testConnection.bind(this),
+            style: 'margin-left: 0.5em;',
+            'aria-label': testConnectionLabel,
+          },
+          testConnectionLabel
+        ),
       ]),
     ]);
   }
@@ -90,16 +76,17 @@ export default class CnsearchAdminButtons extends Component {
         url: `${app.forum.attribute('apiUrl')}/cnsearch/status`,
       })
       .then((response) => {
-        this.connected = true;
-        this.statusText = app.translator.trans('gitzaai-cnsearch.admin.buttons.status_connected');
+        this.statusText =
+          response.data.status === 'error'
+            ? response.data.error || app.translator.trans('gitzaai-cnsearch.admin.buttons.status_disconnected')
+            : app.translator.trans('gitzaai-cnsearch.admin.buttons.status_connected');
         this.documentCount = response.data.count;
         this.sourceDiscussions = response.data.sourceDiscussions ?? null;
         this.sourcePosts = response.data.sourcePosts ?? null;
         this.lastSync = response.data.lastReindexAt ? new Date(response.data.lastReindexAt * 1000).toLocaleString() : null;
       })
       .catch((error) => {
-        this.connected = false;
-        this.statusText = this.errorMessage(error, app.translator.trans('gitzaai-cnsearch.admin.buttons.status_disconnected'));
+        this.statusText = error.response?.body?.errors?.[0]?.detail || app.translator.trans('gitzaai-cnsearch.admin.buttons.status_disconnected');
         this.documentCount = null;
         this.sourceDiscussions = null;
         this.sourcePosts = null;
@@ -127,7 +114,7 @@ export default class CnsearchAdminButtons extends Component {
         this.refreshStatus();
       })
       .catch((error) => {
-        const message = this.errorMessage(error, app.translator.trans('gitzaai-cnsearch.admin.buttons.reindex_failed'));
+        const message = error.response?.body?.errors?.[0]?.detail || app.translator.trans('gitzaai-cnsearch.admin.buttons.reindex_failed');
         app.alerts.show({ type: 'error' }, message);
       })
       .finally(() => {
@@ -149,7 +136,8 @@ export default class CnsearchAdminButtons extends Component {
         app.alerts.show({ type: 'success' }, app.translator.trans('gitzaai-cnsearch.admin.buttons.test_connection_success'));
       })
       .catch((error) => {
-        const message = this.errorMessage(error, app.translator.trans('gitzaai-cnsearch.admin.buttons.test_connection_failed'));
+        const message =
+          error.response?.body?.errors?.[0]?.detail || app.translator.trans('gitzaai-cnsearch.admin.buttons.test_connection_failed');
         app.alerts.show({ type: 'error' }, message);
       })
       .finally(() => {

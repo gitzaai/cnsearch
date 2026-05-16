@@ -21,7 +21,7 @@ class ConfigureCommand extends AbstractCommand
         $this
             ->setName('cnsearch:configure')
             ->setDescription('Configure CN Search Meilisearch connection settings.')
-            ->addArgument('host', InputArgument::REQUIRED, 'Meilisearch host, for example http://127.0.0.1:7700')
+            ->addArgument('host', InputArgument::REQUIRED, 'Meilisearch host URL.')
             ->addOption('key', null, InputOption::VALUE_REQUIRED, 'Meilisearch API key. Use an empty value to clear it.')
             ->addOption('index', null, InputOption::VALUE_REQUIRED, 'Meilisearch index name.', 'flarum_discussions');
     }

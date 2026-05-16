@@ -1,21 +1,28 @@
 # Changelog
 
-## v0.1.19 - 2026-05-09
+## v0.1.21 - 2026-05-16
 
-- Register admin options with Flarum 2 `Extend.Admin().setting()` so the extension card shows the settings action.
-- Keep Meilisearch connection controls on the generated extension settings page.
+- Make bootstrap class includes tolerate partially missing uploaded files so extension enablement is not blocked by optional API controller paths.
 
-## v0.1.18 - 2026-05-09
+## v0.1.20 - 2026-05-16
 
-- Fix the Flarum 2 admin settings page registration so the extension settings are visible in the backend.
-- Remove the invalid admin `generalItems` registration and keep the dedicated extension settings page.
-- Improve Meilisearch default handling and visible-result pagination/counting during search.
+- Require the bootstrap class files directly so missing or unreadable files fail during extension boot instead of surfacing later as missing route controllers.
+
+## v0.1.19 - 2026-05-16
+
+- Replace recursive source scanning with an explicit readable-file bootstrap list to avoid boot errors on hosts that deny directory listing.
+
+## v0.1.18 - 2026-05-16
+
+- Load all extension PHP classes from `extend.php` so manual ZIP installs do not 500 before Composer autoload is refreshed.
 
 ## v0.1.17 - 2026-05-09
 
-- Add a dedicated admin settings page for Meilisearch host, API key, and index management.
-- Add admin-side connection test and reindex controls for quicker setup verification.
-- Update the installation guide to document installing the `dev-main` branch from the repository.
+- Add Flarum 2 API controllers for search, status, connection test, and reindex routes.
+- Export the Flarum 2 admin extender correctly so Meilisearch settings appear in the admin panel.
+- Avoid defaulting an empty Meilisearch host to localhost and treat an empty API key as unset.
+- Return actionable JSON:API error details from admin connection and reindex actions.
+- Add a direct controller include fallback in `extend.php` for manual upload and autoload refresh edge cases.
 
 ## v0.1.16 - 2026-05-06
 
